@@ -1,2 +1,2 @@
-# ImageStripper
-Strips image url sout of an HTML file and downloads them
+# DropoutStripper
+Strips out Episode Name, number, description, and image from Dropout.tv html for uploading to TheMovieDB
