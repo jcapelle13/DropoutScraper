@@ -1,9 +1,10 @@
-import requests, os, yaml, re
+import requests, os, yaml, wget
 from bs4 import BeautifulSoup
 import tmdbsimple as tmdb
+from sanitize_filename import sanitize
 
 
-def get_episodes_from_soup(soup, tmdb_id=None, show_name=None):
+def get_episodes_from_soup(soup, tmdb_id=None, show_name=None, download_images=False, season_num=1):
     if not tmdb_id and not show_name:
         raise NameError("TMDB ID and Show Title Not Set")
     if not show_name:
@@ -26,17 +27,27 @@ def get_episodes_from_soup(soup, tmdb_id=None, show_name=None):
         num_label = ep_object.find('span', class_='media-episode')
         if num_label is None or "Episode" not in num_label.text:
             continue
-        episode['number'] = int(num_label.text.split(' ')[1])
+        episode['episode_num'] = int(num_label.text.split(' ')[1])
 
         # Extract the episode description
         raw_description = ep_object.find('p')
         # Raw description can be None sometimes
         if raw_description:
             episode['desc'] = " " .join(word.strip() for word in raw_description.text.split())
-
-
         # Extract the URL for the episode image
-        episode['img_url'] = image_object['src'].split('?')[0]  # Remove query params from URL
+        episode['img_url'] = url = image_object['src'].split('?')[0]  # Remove query params from URL
+        if download_images:
+            #File name of the form e00 - Episode title.jpg
+            filename = f"e{episode['episode_num']:02d} - {episode['title']}.{url.split('.')[-1]}"
+            filename = sanitize(filename)
+            base_dir = f"imgs/{show_name}/Season {season_num}"
+            os.makedirs(base_dir, exist_ok=True)
+            path = os.path.join("imgs", show_name, f'Season {season_num}', filename)
+            if os.path.exists(path):
+                print("Existing File found:", filename)
+            else:
+                print("Downloading", filename, "from", url)
+                wget.download(url, path)
         show_data['episodes'].append(episode)
     return show_data
 
@@ -48,7 +59,7 @@ def get_dropout_soup(show_url, session, season_num):
 
 
 debug = False
-
+download_images = False
 if debug:
     filename = "test.html"
     # Because i don't like with "with open() as f" blocks creating an indent
@@ -87,9 +98,9 @@ else:
         for i in range(1,num_seasons+1):
             print(f'\tSeason {i}...')
             soup = get_dropout_soup(show['show_url'], session, i)
-            season = get_episodes_from_soup(soup, show_name=show['name'])
+            season = get_episodes_from_soup(soup, show_name=show['name'], download_images=download_images, season_num=i)
             show['seasons'].append({'season_num': i, 'episodes': season['episodes']})
-    
+
     with open('data.yaml', 'w') as yaml_file:
         yaml.safe_dump(target_shows, yaml_file, sort_keys=False)
         
