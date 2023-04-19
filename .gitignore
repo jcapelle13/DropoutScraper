@@ -1,6 +1,8 @@
 *.html
 imgs/
 .secrets
+*.json
+*.yaml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
